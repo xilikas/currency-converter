@@ -1,21 +1,26 @@
 import React, { Component } from 'react';
 import './App.css';
 
+const API_KEY = process.env.REACT_APP_API_KEY;
+const BASE_URL = 'https://free.currencyconverterapi.com/api/v6';
+
 class App extends Component {
   state = {
     initialCurrency: 0,
+    initialCurrencyId: 'CAD',
     convertedCurrency: 0,
+    convertedCurrencyId: 'USD',
     curEx: {},
+    countries: [],
   };
 
   async componentDidMount() {
-    const API_KEY = process.env.REACT_APP_API_KEY;
+    // Get countries
     try {
-      const res = await fetch(
-        `https://free.currencyconverterapi.com/api/v6/convert?apiKey=${API_KEY}&q=CAD_USD,USD_CAD&compact=y`,
-      );
-      const conversion = await res.json();
-      this.setState({ curEx: conversion });
+      const res = await fetch(`${BASE_URL}/countries?apiKey=${API_KEY}`);
+      const countries = await res.json();
+      this.setState({ countries: Object.values(countries.results) });
+      this.curEx();
     } catch (e) {
       console.log(e);
     }
@@ -33,21 +38,58 @@ class App extends Component {
 
   convert = () => {
     const { initialCurrency, curEx } = this.state;
-    const result = +(initialCurrency * curEx.CAD_USD.val).toFixed(2);
+    this.curEx();
+    // Have to pull out exchange rate
+    const rate = curEx[Object.keys(curEx)[0]];
+    const result = +(initialCurrency * rate).toFixed(2);
     this.setState({ convertedCurrency: result });
   };
 
+  handleInitialSelect = (e) => {
+    this.setState({ initialCurrencyId: e.target.value });
+  };
+
+  handleConvertedSelect = (e) => {
+    this.setState({ convertedCurrencyId: e.target.value });
+  };
+
+  // Get currency exchange
+  curEx = async () => {
+    try {
+      const { initialCurrencyId, convertedCurrencyId } = this.state;
+      const res = await fetch(
+        `${BASE_URL}/convert?apiKey=${API_KEY}&q=${initialCurrencyId}_${convertedCurrencyId}&compact=ultra`,
+      );
+      const conversion = await res.json();
+      this.setState({ curEx: conversion });
+    } catch (e) {
+      console.log(e);
+    }
+  };
+
   render() {
-    const { convertedCurrency } = this.state;
+    const { convertedCurrency, countries } = this.state;
     return (
       <div className="App">
         <h1>Currency Converter</h1>
-        <input onChange={e => this.onChange(e)} type="text" />
+        <input onChange={e => this.onChange(e)} type="number" />
+        <select onChange={e => this.handleInitialSelect(e)}>
+          {countries.map(country => (
+            <option key={country.id} value={country.currencyId}>
+              {country.currencyId}
+            </option>
+          ))}
+        </select>
         {' '}
-CAD =
+        =
         <input readOnly type="text" value={convertedCurrency} />
-        {' '}
-USD
+        <select onChange={e => this.handleConvertedSelect(e)}>
+          {countries.map(country => (
+            <option key={country.id} value={country.currencyId}>
+              {country.currencyId}
+            </option>
+          ))}
+        </select>
       </div>
     );
   }
