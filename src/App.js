@@ -12,15 +12,23 @@ class App extends Component {
     convertedCurrencyId: 'USD',
     curEx: {},
     countries: [],
+    limit: false,
   };
 
   async componentDidMount() {
     // Get countries
     try {
-      const res = await fetch(`${BASE_URL}/countries?apiKey=${API_KEY}`);
-      const countries = await res.json();
-      this.setState({ countries: Object.values(countries.results) });
-      this.curEx();
+      // Check API limit usage
+      let res = await fetch(`https://free.currencyconverterapi.com/others/usage?apiKey=${API_KEY}`);
+      const limit = await res.json();
+      if (limit.usage >= 100) {
+        this.setState({ limit: limit.usage });
+      } else {
+        res = await fetch(`${BASE_URL}/countries?apiKey=${API_KEY}`);
+        const countries = await res.json();
+        this.setState({ countries: Object.values(countries.results) });
+        this.curEx();
+      }
     } catch (e) {
       console.log(e);
     }
@@ -68,28 +76,38 @@ class App extends Component {
   };
 
   render() {
-    const { convertedCurrency, countries } = this.state;
+    const { limit, convertedCurrency, countries } = this.state;
     return (
       <div className="App">
         <h1>Currency Converter</h1>
-        <input onChange={e => this.onChange(e)} type="number" />
-        <select onChange={e => this.handleInitialSelect(e)}>
-          {countries.map(country => (
-            <option key={country.id} value={country.currencyId}>
-              {country.currencyId}
-            </option>
-          ))}
-        </select>
-        {' '}
-        =
-        <input readOnly type="text" value={convertedCurrency} />
-        <select onChange={e => this.handleConvertedSelect(e)}>
-          {countries.map(country => (
-            <option key={country.id} value={country.currencyId}>
-              {country.currencyId}
-            </option>
-          ))}
-        </select>
+        {limit && (
+          <>
+            <h1>API LIMIT REACHED</h1>
+            <h3>Please come back at the hour</h3>
+          </>
+        )}
+        {!limit && (
+          <>
+            <input onChange={e => this.onChange(e)} type="number" />
+            <select onChange={e => this.handleInitialSelect(e)}>
+              {countries.map(country => (
+                <option key={country.id} value={country.currencyId}>
+                  {country.currencyId}
+                </option>
+              ))}
+            </select>
+            {' '}
+            =
+            <input readOnly type="text" value={convertedCurrency} />
+            <select onChange={e => this.handleConvertedSelect(e)}>
+              {countries.map(country => (
+                <option key={country.id} value={country.currencyId}>
+                  {country.currencyId}
+                </option>
+              ))}
+            </select>
+          </>
+        )}
       </div>
     );
   }
